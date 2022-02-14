@@ -14,8 +14,8 @@ PKG_TEST_FILE="tools/version.c"
 PKG_LIBS="-lssl -lcrypto"
 PKG_CFLAGS=""
 
-# For testing alpha version
-# export PKG_CONFIG_PATH="/usr/local/opt/openssl@3/lib/pkgconfig"
+# Allow overwriting pkg config path to use e.g. openssl 3
+export PKG_CONFIG_PATH="${OPENSSL_PKG_CONFIG_PATH}"
 
 # Use pkg-config if available
 pkg-config ${PKG_CONFIG_NAME} --atleast-version=1.0  2>/dev/null
