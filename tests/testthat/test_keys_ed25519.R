@@ -13,7 +13,7 @@ test_that("reading protected keys", {
   expect_equal(sk1, sk2)
   expect_equal(sk1, sk3)
   expect_equal(sk1, sk4)
-  expect_error(read_key("../keys/id_ed25519.pw", password = NULL), "bad")
+  expect_error(read_key("../keys/id_ed25519.pw", password = NULL), "bad|empty")
 })
 
 test_that("reading public key formats", {
@@ -29,10 +29,11 @@ test_that("reading public key formats", {
 
 test_that("pubkey ssh fingerprint", {
   fp <- paste(as.list(pk1)$fingerprint, collapse = "")
-  expect_equal(fp, "2c9bea2e9a4ce1fb4438d854b27204b3")
+  expect_equal(fp, "e07a7f95a68c864c757942aac2a42ca3fb26f1f66cd37d6f77559b63847b9ade")
 })
 
 test_that("signatures", {
+  skip_if(fips_mode())
   msg <- readBin("../keys/message", raw(), 100)
 
   # SHA1 signature
@@ -66,12 +67,14 @@ test_that("roundtrip der format", {
 })
 
 test_that("signature path interface", {
+  skip_if(fips_mode())
   sig <- signature_create("../keys/message", sha256, "../keys/id_ed25519")
   writeBin(sig, tmp <- tempfile())
   expect_true(signature_verify("../keys/message", tmp, sha256, "../keys/id_ed25519.pub"))
 })
 
 test_that("ec_keygen works", {
+  skip_if(fips_mode())
   key <- ed25519_keygen()
   expect_equal(as.list(key)$size, 256)
   expect_length(as.list(key)$data, 32)

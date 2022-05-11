@@ -7,13 +7,17 @@ sk1 <- read_key("../keys/id_ecdsa384")
 pk1 <- read_pubkey("../keys/id_ecdsa384.pub")
 
 test_that("reading protected keys", {
-  sk2 <- read_key("../keys/id_ecdsa384.pw", password = "test")
+  if(fips_mode()){
+    expect_error(read_key("../keys/id_ecdsa384.pw", password = "test"), "FIPS")
+  } else {
+    expect_error(read_key("../keys/id_ecdsa384.pw", password = NULL), "bad")
+    sk2 <- read_key("../keys/id_ecdsa384.pw", password = "test")
+    expect_equal(sk1, sk2)
+  }
   sk3 <- read_key("../keys/id_ecdsa384.openssh")
   sk4 <- read_key("../keys/id_ecdsa384.openssh.pw", password = "test")
-  expect_equal(sk1, sk2)
   expect_equal(sk1, sk3)
   expect_equal(sk1, sk4)
-  expect_error(read_key("../keys/id_ecdsa384.pw", password = NULL), "bad")
 })
 
 test_that("reading public key formats", {
@@ -29,6 +33,7 @@ test_that("reading public key formats", {
 
 test_that("legacy pkcs1 format", {
   expect_equal(sk1, read_key(write_pkcs1(sk1)))
+  skip_if(fips_mode())
   expect_equal(sk1, read_key(write_pkcs1(sk1, password = 'test'), password = 'test'))
   #expect_equal(pk1, read_pubkey(write_pkcs1(pk1)))
   expect_error(read_key(write_pkcs1(sk1, password = 'test'), password = ''))
@@ -36,7 +41,7 @@ test_that("legacy pkcs1 format", {
 
 test_that("pubkey ssh fingerprint", {
   fp <- paste(as.list(pk1)$fingerprint, collapse = "")
-  expect_equal(fp, "8cf3736c4a28cf2bd63bbf3278d00630")
+  expect_equal(fp, "2378e98f946fbe07c28308835f932834a374a215ae515f65b77678613e412101")
 })
 
 test_that("signatures", {

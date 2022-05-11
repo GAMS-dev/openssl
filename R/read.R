@@ -1,29 +1,29 @@
 #' Parsing keys and certificates
 #'
-#' The \code{read_key} function (private keys) and \code{read_pubkey} (public keys)
-#' support both SSH pubkey format and OpenSSL PEM format (base64 data with a \code{--BEGIN}
-#' and \code{---END} header), and automatically convert where necessary. The functions assume
-#' a single key per file except for \code{read_cert_bundle} which supports PEM files
+#' The `read_key` function (private keys) and `read_pubkey` (public keys)
+#' support both SSH pubkey format and OpenSSL PEM format (base64 data with a `--BEGIN`
+#' and `---END` header), and automatically convert where necessary. The functions assume
+#' a single key per file except for `read_cert_bundle` which supports PEM files
 #' with multiple certificates.
 #'
 #' Most versions of OpenSSL support at least RSA, DSA and ECDSA keys. Certificates must
 #' conform to the X509 standard.
 #'
-#' The \code{password} argument is needed when reading keys that are protected with a
+#' The `password` argument is needed when reading keys that are protected with a
 #' passphrase. It can either be a string containing the passphrase, or a custom callback
 #' function that will be called by OpenSSL to read the passphrase. The function should
 #' take one argument (a string with a message) and return a string. The default is to
-#' use \code{readline} which will prompt the user in an interactive R session.
+#' use `readline` which will prompt the user in an interactive R session.
 #'
 #' @export
 #' @param file Either a path to a file, a connection, or literal data (a string for
 #' pem/ssh format, or a raw vector in der format)
 #' @param password A string or callback function to read protected keys
-#' @param der set to \code{TRUE} if \code{file} is in binary DER format
-#' @return An object of class \code{cert}, \code{key} or \code{pubkey} which holds the data
-#' in binary DER format and can be decomposed using \code{as.list}.
+#' @param der set to `TRUE` if `file` is in binary DER format
+#' @return An object of class `cert`, `key` or `pubkey` which holds the data
+#' in binary DER format and can be decomposed using `as.list`.
 #' @rdname read_key
-#' @seealso \link{download_ssl_cert}
+#' @seealso [download_ssl_cert]
 #' @examples \dontrun{# Read private key
 #' key <- read_key("~/.ssh/id_rsa")
 #' str(key)
@@ -261,17 +261,21 @@ split_pem <- function(text) {
 #' @export
 print.key <- function(x, ...){
   pk <- derive_pubkey(x)
-  fp <- fingerprint(pk)
   cat(sprintf("[%d-bit %s private key]\n", pubkey_bitsize(pk), pubkey_type(pk)))
-  cat(sprintf("md5: %s\n", paste(fp, collapse = ":")))
+  if(!fips_mode()){
+    cat(sprintf("md5: %s\n", as.character(fingerprint(pk, md5))))
+  }
+  cat(sprintf("sha256: %s\n", as.character(fingerprint(pk))))
 }
 
 #' @export
 print.pubkey <- function(x, ...){
-  fp <- fingerprint(x)
   type <- class(x)[2]
   cat(sprintf("[%d-bit %s public key]\n", pubkey_bitsize(x), pubkey_type(x)))
-  cat(sprintf("md5: %s\n", paste(fp, collapse = ":")))
+  if(!fips_mode()){
+    cat(sprintf("md5: %s\n", as.character(fingerprint(x, md5))))
+  }
+  cat(sprintf("sha256: %s\n", as.character(fingerprint(x))))
 }
 
 #' @export
@@ -280,8 +284,10 @@ print.cert <- function(x, ...){
   cname <- regmatches(subject, regexpr("CN ?=[^,]*", subject))
   cname <- ifelse(length(cname), gsub("CN ?=", "", cname), "")
   cat(sprintf("[x509 certificate] %s\n", cname))
-  cat(sprintf("md5: %s\n", paste(md5(x), collapse = ":")))
-  cat(sprintf("sha1: %s\n", paste(sha1(x), collapse = ":")))
+  if(!fips_mode()){
+    cat(sprintf("md5: %s\n", as.character(md5(x))))
+  }
+  cat(sprintf("sha1: %s\n", as.character(sha1(x))))
 }
 
 path_or_raw <- function(x){

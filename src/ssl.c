@@ -35,6 +35,7 @@
 #include <openssl/x509.h>
 #include <openssl/ssl.h>
 #include "utils.h"
+#include "compatibility.h"
 
 #ifdef _WIN32
 #define NONBLOCK_OK (WSAGetLastError() == WSAEWOULDBLOCK)
@@ -84,6 +85,27 @@ void check_interrupt_fn(void *dummy) {
 
 int pending_interrupt() {
   return !(R_ToplevelExec(check_interrupt_fn, NULL));
+}
+
+static SEXP R_write_cert(X509 *cert){
+  unsigned char *buf = NULL;
+  int len = i2d_X509(cert, &buf);
+  SEXP out = allocVector(RAWSXP, len);
+  memcpy(RAW(out), buf, len);
+  setAttrib(out, R_ClassSymbol, mkString("cert"));
+  OPENSSL_free(buf);
+  return out;
+}
+
+static SEXP R_write_cert_chain(STACK_OF(X509) *chain){
+  int n = sk_X509_num(chain);
+  bail(n >= 0);
+  SEXP res = PROTECT(allocVector(VECSXP, n));
+  for(int i = 0; i < n; i++){
+    SET_VECTOR_ELT(res, i, R_write_cert(sk_X509_value(chain, i)));
+  }
+  UNPROTECT(1);
+  return res;
 }
 
 SEXP R_download_cert(SEXP hostname, SEXP service, SEXP ipv4_only) {
@@ -175,30 +197,58 @@ SEXP R_download_cert(SEXP hostname, SEXP service, SEXP ipv4_only) {
   }
 
   /* Convert certs to RAW. Not sure if I should free these */
-  STACK_OF(X509) *chain = SSL_get_peer_cert_chain(ssl);
-  int n = sk_X509_num(chain);
-  bail(n > 0);
-
-  int len;
-  unsigned char *buf = NULL;
-  SEXP res = PROTECT(allocVector(VECSXP, n));
-  for(int i = 0; i < n; i++){
-    len = i2d_X509(sk_X509_value(chain, i), &buf);
-    SET_VECTOR_ELT(res, i, allocVector(RAWSXP, len));
-    memcpy(RAW(VECTOR_ELT(res, i)), buf, len);
-    setAttrib(VECTOR_ELT(res, i), R_ClassSymbol, mkString("cert"));
-    OPENSSL_free(buf);
-    buf = NULL;
-  }
+  SEXP res = R_write_cert_chain(SSL_get_peer_cert_chain(ssl));
 
   /* Cleanup SSL */
   SSL_free(ssl);
   SSL_CTX_free(ctx);
-
-  /* Test for cert */
-  if(n < 1)
-    error("Server did not present a certificate");
-
-  UNPROTECT(1);
   return res;
+}
+
+static int sslVerifyCallback(X509_STORE_CTX* x509Ctx, void *fun) {
+  X509 *cert = MY_X509_STORE_CTX_get0_cert(x509Ctx);
+  if(!cert){
+    REprintf("Did not get certificate from the server\n");
+    return 0;
+  }
+  SEXP p1 = PROTECT(R_write_cert(cert));
+  SEXP call = PROTECT(Rf_lang2(fun, p1));
+  int err = 0;
+  SEXP res = PROTECT(R_tryEval(call, R_GlobalEnv, &err));
+  if (err || TYPEOF(res) != LGLSXP || length(res) != 1) {
+    UNPROTECT(3);
+    REprintf("sslVerifyCallback must return TRUE (continue) or FALSE (stop)");
+    return 0;
+  }
+  UNPROTECT(3);
+  return Rf_asLogical(res);
+}
+
+SEXP R_ssl_ctx_set_verify_callback(SEXP ptr, SEXP fun){
+  if(TYPEOF(ptr) != EXTPTRSXP || !Rf_inherits(ptr, "ssl_ctx"))
+    Rf_error("Object is not a ssl_ctx");
+  if(!Rf_isFunction(fun))
+    Rf_error("Callback is not a function");
+  SSL_CTX *ctx = R_ExternalPtrAddr(ptr);
+  if(ctx == NULL)
+    return R_NilValue;
+  R_SetExternalPtrProtected(ptr, fun);
+  SSL_CTX_set_cert_verify_callback(ctx, sslVerifyCallback, fun);
+  return Rf_ScalarInteger(1);
+}
+
+SEXP R_ssl_ctx_add_cert_to_store(SEXP ssl_ctx, SEXP cert){
+  if(TYPEOF(ssl_ctx) != EXTPTRSXP || !Rf_inherits(ssl_ctx, "ssl_ctx"))
+    Rf_error("Object is not a ssl_ctx");
+  if(!inherits(cert, "cert"))
+    Rf_error("cert is not a cert object");
+  const unsigned char *certptr = RAW(cert);
+  X509 *crt = d2i_X509(NULL, &certptr, Rf_length(cert));
+  bail(!!crt);
+  SSL_CTX *ctx = R_ExternalPtrAddr(ssl_ctx);
+  if(ctx == NULL)
+    return R_NilValue;
+  X509_STORE_add_cert(SSL_CTX_get_cert_store(ctx), crt);
+  X509_free(crt);
+  return Rf_ScalarInteger(1);
 }
