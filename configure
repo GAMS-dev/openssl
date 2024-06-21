@@ -17,8 +17,13 @@ PKG_CFLAGS=""
 # Allow overwriting pkg config path to use e.g. openssl 3
 export PKG_CONFIG_PATH="${OPENSSL_PKG_CONFIG_PATH}"
 
+# On MacOS we avoid legacy versions of openssl
+if [ `uname` = "Darwin" ]; then
+MINVERSION="--atleast-version=3"
+fi
+
 # Use pkg-config if available
-pkg-config ${PKG_CONFIG_NAME} --atleast-version=1.0  2>/dev/null
+pkg-config ${PKG_CONFIG_NAME} ${MINVERSION} 2>/dev/null
 if [ $? -eq 0 ]; then
   PKGCONFIG_CFLAGS=`pkg-config --cflags ${PKG_CONFIG_NAME}`
   PKGCONFIG_LIBS=`pkg-config --libs ${PKG_CONFIG_NAME}`
@@ -76,7 +81,7 @@ fi
 
 # Try to link against the correct OpenSSL version
 if [ -z "$AUTOBREW" ]; then
-SONAME=`${CC} -E ${PKG_CFLAGS} src/tests/soname.h | sh | xargs`
+SONAME=`${CC} -E ${PKG_CFLAGS} src/tests/soname.h | grep 'echo' | sh | xargs`
 if [ "$SONAME" ]; then
 if [ `uname` = "Darwin" ]; then
   PKG_LIBS_VERSIONED=`echo "${PKG_LIBS}" | sed "s/-lssl/-lssl.${SONAME}/" | sed "s/-lcrypto/-lcrypto.${SONAME}/"`

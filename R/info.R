@@ -15,7 +15,6 @@ openssl_config <- function(){
   structure(out, names = c("version", "ec", "x25519", "fips"))
 }
 
-
 #' @rdname openssl_config
 #' @export
 #' @useDynLib openssl R_openssl_fips_mode
