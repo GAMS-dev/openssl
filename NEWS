@@ -1,3 +1,13 @@
+2.3.0
+ - Windows: use OpenSSL from Rtools if found
+
+2.2.2
+ - Reduce test verbosity per CRAN request
+ - Update maintainer email address
+
+2.2.1
+ - Skip some legacy sha1 tests on Redhat systems to fix #125
+
 2.2.0
  - Use new EVP_MD_fetch() api on libssl 3 to find non-default algorithms.
  - Add keccak() hash function

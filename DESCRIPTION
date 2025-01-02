@@ -1,8 +1,8 @@
 Package: openssl
 Type: Package
 Title: Toolkit for Encryption, Signatures and Certificates Based on OpenSSL
-Version: 2.2.0
-Authors@R: c(person("Jeroen", "Ooms", role = c("aut", "cre"), email = "jeroen@berkeley.edu",
+Version: 2.3.0
+Authors@R: c(person("Jeroen", "Ooms", role = c("aut", "cre"), email = "jeroenooms@gmail.com",
     comment = c(ORCID = "0000-0002-4035-0289")),
     person("Oliver", "Keyes", role = "ctb"))
 Description: Bindings to OpenSSL libssl and libcrypto, plus custom SSH key parsers.
@@ -29,6 +29,6 @@ Suggests:
     jsonlite,
     jose,
     sodium
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
