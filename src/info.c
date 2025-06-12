@@ -1,6 +1,7 @@
 #include <Rinternals.h>
 #include <openssl/opensslconf.h>
 #include <openssl/opensslv.h>
+#include "compatibility.h"
 
 #include <openssl/evp.h>
 #ifdef EVP_PKEY_ED25519
@@ -24,17 +25,23 @@ SEXP R_openssl_config(void) {
   #ifdef OPENSSL_FIPS
   has_fips = 1;
   #endif
-  SEXP res = PROTECT(allocVector(VECSXP, 4));
-  SET_VECTOR_ELT(res, 0, mkString(OPENSSL_VERSION_TEXT));
-  SET_VECTOR_ELT(res, 1, ScalarLogical(has_ec));
-  SET_VECTOR_ELT(res, 2, ScalarLogical(has_x25519));
-  SET_VECTOR_ELT(res, 3, ScalarLogical(has_fips));
+  SEXP res = PROTECT(Rf_allocVector(VECSXP, 4));
+#ifdef HAS_OPENSSL11_API
+  SET_VECTOR_ELT(res, 0, Rf_mkString(OpenSSL_version(OPENSSL_VERSION)));
+#else
+  SET_VECTOR_ELT(res, 0, Rf_mkString(OPENSSL_VERSION_TEXT));
+#endif
+  SET_VECTOR_ELT(res, 1, Rf_ScalarLogical(has_ec));
+  SET_VECTOR_ELT(res, 2, Rf_ScalarLogical(has_x25519));
+  SET_VECTOR_ELT(res, 3, Rf_ScalarLogical(has_fips));
   UNPROTECT(1);
   return res;
 }
 
 SEXP R_openssl_fips_mode(void){
-#if OPENSSL_VERSION_MAJOR < 3
+#ifdef LIBRESSL_VERSION_NUMBER
+  int enabled = 0;
+#elif OPENSSL_VERSION_MAJOR < 3
   int enabled = FIPS_mode();
 #else
   int enabled = EVP_default_properties_is_fips_enabled(NULL);
