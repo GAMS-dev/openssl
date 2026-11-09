@@ -9,15 +9,15 @@
 #include "compatibility.h"
 
 SEXP R_cert_info(SEXP bin, SEXP name_format){
-  X509 *cert = X509_new();
   const unsigned char *ptr = RAW(bin);
-  bail(!!d2i_X509(&cert, &ptr, LENGTH(bin)));
+  X509 *cert = d2i_X509(NULL, &ptr, LENGTH(bin));
+  bail(!!cert);
 
   //out list
   int bufsize = 8192;
   char buf[bufsize];
   int len;
-  X509_NAME *name;
+  const X509_NAME *name;
   BIO *b;
   SEXP out = PROTECT(Rf_allocVector(VECSXP, 7));
 
@@ -32,7 +32,6 @@ SEXP R_cert_info(SEXP bin, SEXP name_format){
   BIO_free(b);
   SET_VECTOR_ELT(out, 0, Rf_allocVector(STRSXP, 1));
   SET_STRING_ELT(VECTOR_ELT(out, 0), 0, Rf_mkCharLenCE(buf, len, CE_UTF8));
-  X509_NAME_free(name);
 
   //issuer name name
   name = X509_get_issuer_name(cert);
@@ -42,7 +41,6 @@ SEXP R_cert_info(SEXP bin, SEXP name_format){
   BIO_free(b);
   SET_VECTOR_ELT(out, 1, Rf_allocVector(STRSXP, 1));
   SET_STRING_ELT(VECTOR_ELT(out, 1), 0, Rf_mkCharLenCE(buf, len, CE_UTF8));
-  X509_NAME_free(name);
 
   //sign algorithm
   const ASN1_BIT_STRING *signature;
@@ -52,8 +50,8 @@ SEXP R_cert_info(SEXP bin, SEXP name_format){
   SET_VECTOR_ELT(out, 2, Rf_mkString(buf));
 
   //signature
-  SET_VECTOR_ELT(out, 3, Rf_allocVector(RAWSXP, signature->length));
-  memcpy(RAW(VECTOR_ELT(out, 3)), signature->data, signature->length);
+  SET_VECTOR_ELT(out, 3, Rf_allocVector(RAWSXP, ASN1_STRING_length(signature)));
+  memcpy(RAW(VECTOR_ELT(out, 3)), MY_ASN1_STRING_get0_data(signature), ASN1_STRING_length(signature));
 
   //start date
   SET_VECTOR_ELT(out, 4, Rf_allocVector(STRSXP, 2));
@@ -88,6 +86,9 @@ SEXP R_cert_info(SEXP bin, SEXP name_format){
       }
     }
   }
+  GENERAL_NAMES_free(subjectAltNames);
+
+  X509_free(cert);
 
   //return
   UNPROTECT(1);
@@ -148,4 +149,12 @@ SEXP R_cert_verify_cert(SEXP cert, SEXP chain, SEXP bundle) {
     Rf_error("Certificate validation failed: %s", err);
 
   return Rf_ScalarLogical(TRUE);
+}
+
+SEXP R_default_cert_file(void){
+  SEXP out = PROTECT(Rf_allocVector(STRSXP, 2));
+  SET_STRING_ELT(out, 0, Rf_mkChar(X509_get_default_cert_file_env()));
+  SET_STRING_ELT(out, 1, Rf_mkChar(X509_get_default_cert_file()));
+  UNPROTECT(1);
+  return out;
 }

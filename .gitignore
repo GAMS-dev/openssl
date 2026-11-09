@@ -9,3 +9,5 @@ src/main.exe
 src/openssl.dll
 windows
 configure.log
+.positai
+inst/cacert.pem

@@ -21,3 +21,6 @@ tools/benchmark.R
 ^.*\.so$
 ^configure.log$
 ^\.github$
+^\.positai$
+^\.claude$
+^inst/cacert\.pem$

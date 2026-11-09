@@ -1,5 +1,6 @@
 /* Compatibility stuff for API changes in OpenSSL 1.1 */
 #include <openssl/opensslv.h>
+#include <openssl/x509.h>
 #if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER >= 0x2070000fL
 #define HAS_OPENSSL11_API 1
 #elif !defined(LIBRESSL_VERSION_NUMBER) && OPENSSL_VERSION_NUMBER >= 0x10100001L
@@ -28,6 +29,9 @@
 #define MY_X509_get0_signature X509_get0_signature
 #define MY_ECDSA_SIG_get0 ECDSA_SIG_get0
 #define MY_ECDSA_SIG_set0 ECDSA_SIG_set0
+#define MY_ASN1_STRING_get0_data ASN1_STRING_get0_data
+#define MY_EVP_ENCODE_CTX_new EVP_ENCODE_CTX_new
+#define MY_EVP_ENCODE_CTX_free EVP_ENCODE_CTX_free
 #else
 
 X509 *MY_X509_STORE_CTX_get0_cert(X509_STORE_CTX *store);
@@ -47,5 +51,7 @@ void MY_DSA_get0_key(const DSA *d, const BIGNUM **pub_key, const BIGNUM **priv_k
 void MY_X509_get0_signature(const ASN1_BIT_STRING **psig, const X509_ALGOR **palg, const X509 *x);
 void MY_ECDSA_SIG_get0(const ECDSA_SIG *sig, const BIGNUM **pr, const BIGNUM **ps);
 int MY_ECDSA_SIG_set0(ECDSA_SIG *sig, BIGNUM *r, BIGNUM *s);
-
+#define MY_ASN1_STRING_get0_data ASN1_STRING_data
+EVP_ENCODE_CTX *MY_EVP_ENCODE_CTX_new(void);
+void MY_EVP_ENCODE_CTX_free(EVP_ENCODE_CTX *ctx);
 #endif
